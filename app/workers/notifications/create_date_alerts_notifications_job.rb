@@ -44,7 +44,7 @@ module Notifications
     end
 
     def send_start_date_alert_notifications(user)
-      work_package_with_involved(user)
+      WorkPackage.with_status_open.involving_user(user)
         .where(start_date: Date.current + 1.day)
         .each do |work_package|
           create_service = Notifications::CreateService.new(user:)
@@ -62,14 +62,6 @@ module Notifications
     # ending to the current time.
     def job_time_range
       @job_time_range ||= run_at..Time.current
-    end
-
-    def work_package_with_involved(user)
-      work_packages = WorkPackage
-        .joins(:status)
-        .where(statuses: { is_closed: false })
-      work_packages.where(assigned_to: user)
-        .or(work_packages.where(responsible: user))
     end
 
     def time_zones_covering_1am_local_time
