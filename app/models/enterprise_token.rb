@@ -1,12 +1,17 @@
+############ REPLACE app/models/enterprise_token.rb in the source code with this file! ################
+############ also be sure to RESTART OpenProject after replacing the file.             ################
+############ it doesn't show that enterprise mode is enabled in the settings, but all  ################
+############ enterprise mode features, such as KanBan boards, are enabled.             ################
+
 #-- copyright
 # OpenProject is an open source project management software.
-# Copyright (C) 2012-2022 the OpenProject GmbH
+# Copyright (C) 2012-2020 the OpenProject GmbH
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 3.
 #
 # OpenProject is a fork of ChiliProject, which is a fork of Redmine. The copyright follows:
-# Copyright (C) 2006-2013 Jean-Philippe Lang
+# Copyright (C) 2006-2017 Jean-Philippe Lang
 # Copyright (C) 2010-2013 the ChiliProject Team
 #
 # This program is free software; you can redistribute it and/or
@@ -23,7 +28,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
-# See COPYRIGHT and LICENSE files for more details.
+# See docs/COPYRIGHT.rdoc for more details.
 #++
 class EnterpriseToken < ApplicationRecord
   class << self
@@ -34,15 +39,15 @@ class EnterpriseToken < ApplicationRecord
     end
 
     def table_exists?
-      connection.data_source_exists? table_name
+      connection.data_source_exists? self.table_name
     end
 
     def allows_to?(action)
-      Authorization::EnterpriseService.new(current).call(action).result
+      true
     end
 
     def show_banners?
-      OpenProject::Configuration.ee_manager_visible? && (!current || current.expired?)
+      false
     end
 
     def set_current_token
@@ -54,7 +59,7 @@ class EnterpriseToken < ApplicationRecord
     end
   end
 
-  validates :encoded_token, presence: true
+  validates_presence_of :encoded_token
   validate :valid_token_object
   validate :valid_domain
 
@@ -80,7 +85,7 @@ class EnterpriseToken < ApplicationRecord
   end
 
   def allows_to?(action)
-    Authorization::EnterpriseService.new(self).call(action).result
+    true
   end
 
   def unset_current_token
@@ -89,23 +94,21 @@ class EnterpriseToken < ApplicationRecord
   end
 
   def expired?(reprieve: true)
-    token_object.expired?(reprieve:) || invalid_domain?
+    false
   end
 
   ##
   # The domain is only validated for tokens from version 2.0 onwards.
   def invalid_domain?
-    return false unless token_object&.validate_domain?
-
-    token_object.domain != Setting.host_name
+    false
   end
 
   private
 
   def load_token!
     @token_object = OpenProject::Token.import(encoded_token)
-  rescue OpenProject::Token::ImportError => e
-    Rails.logger.error "Failed to load EE token: #{e}"
+  rescue OpenProject::Token::ImportError => error
+    Rails.logger.error "Failed to load EE token: #{error}"
     nil
   end
 
